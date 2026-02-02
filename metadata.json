@@ -1,0 +1,5 @@
+{
+  "name": "Educational Game of the Goose",
+  "description": "An interactive, AI-powered educational board game that procedural generates questions based on user-selected topics and age groups.",
+  "requestFramePermissions": []
+}
