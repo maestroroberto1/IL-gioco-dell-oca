@@ -132,7 +132,7 @@
             const start = async (t, a, c) => {
                 setGs(p => ({ ...p, status: 'LOADING', topic: t, age: a }));
                 try {
-                    const aiClient = new GoogleGenAI({ apiKey: API_KEY });
+                    const aiClient = new GoogleGenAI({ apiKey: API_KEY  AIzaSyCPqpgPGh9QUagrngHNQ-SwS7zYVIe3N5A });
                     const prompt = `Genera 15 domande a risposta multipla su "${t}" per ragazzi di "${a}". Ritorna un array JSON: [{text, options[], correctIndex}].`;
                     const response = await aiClient.models.generateContent({
                         model: "gemini-3-flash-preview",
