@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIOCO DELL'OCA ECOLOGICO - Standalone Edition</title>
+    <title>GIOCO DELL'OCA DIDATTICO - AI Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -18,18 +18,21 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .aspect-square { aspect-ratio: 1 / 1; }
-        @keyframes bounce-slow { 0%, 100% { transform: translateY(-8%); } 50% { transform: translateY(0); } }
-        .animate-bounce-slow { animation: bounce-slow 2s infinite ease-in-out; }
+        
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(-15%); }
+            50% { transform: translateY(0); }
+        }
+        .animate-pawn { animation: bounce-slow 2s infinite ease-in-out; }
     </style>
     <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+    "@google/genai": "https://esm.sh/@google/genai@1.3.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
   }
 }
 </script>
@@ -37,289 +40,7 @@
 </head>
 <body>
     <div id="root"></div>
-
-    <script type="module">
-        import React, { useState, useEffect, useCallback } from 'react';
-        import ReactDOM from 'react-dom/client';
-
-        // --- DATABASE DOMANDE INTERNO (30+ Domande) ---
-        const DOMANDE_DATA = [
-            { text: "Quale di questi materiali impiega più tempo a degradarsi nel mare?", options: ["Carta", "Plastica", "Vetro", "Lana"], correctIndex: 2 },
-            { text: "Cosa significa 'Riciclare'?", options: ["Buttare tutto insieme", "Trasformare rifiuti in nuovi oggetti", "Bruciare i rifiuti", "Comprare solo cose nuove"], correctIndex: 1 },
-            { text: "Qual è la fonte di energia più pulita?", options: ["Carbone", "Petrolio", "Sole", "Gas Naturale"], correctIndex: 2 },
-            { text: "Dove si butta una bottiglia di plastica vuota?", options: ["Nel vetro", "Nell'indifferenziata", "Nella plastica", "Carta"], correctIndex: 2 },
-            { text: "Qual è il principale gas responsabile del riscaldamento globale?", options: ["Ossigeno", "Anidride Carbonica (CO2)", "Azoto", "Elio"], correctIndex: 1 },
-            { text: "Cosa si ottiene dal riciclo dell'umido (scarti di cibo)?", options: ["Benzina", "Plastica", "Compost/Fertilizzante", "Carta"], correctIndex: 2 },
-            { text: "Quanta acqua si spreca mediamente lasciando il rubinetto aperto mentre ci si lava i denti?", options: ["1 litro", "30 litri", "15-20 litri", "100 litri"], correctIndex: 2 },
-            { text: "Quale di questi NON è un combustibile fossile?", options: ["Carbone", "Vento", "Petrolio", "Gas"], correctIndex: 1 },
-            { text: "Cosa significa l'acronimo 'RAEE'?", options: ["Rifiuti Alimentari", "Rifiuti di Apparecchiature Elettriche", "Riciclo Aria", "Risparmio Acqua"], correctIndex: 1 },
-            { text: "Perché le api sono importanti per l'ambiente?", options: ["Fanno solo il miele", "Pungono i nemici", "Impollinano i fiori e le piante", "Sono belle da vedere"], correctIndex: 2 },
-            { text: "Qual è il modo migliore per ridurre i rifiuti?", options: ["Riciclare tutto", "Riutilizzare gli oggetti", "Comprare prodotti usa e getta", "Bruciare i rifiuti"], correctIndex: 1 },
-            { text: "Dove vanno buttate le pile scariche?", options: ["Nella plastica", "Nei contenitori appositi", "Nel vetro", "Nel cestino di casa"], correctIndex: 1 },
-            { text: "Quale materiale si può riciclare all'infinito senza perdere qualità?", options: ["Carta", "Plastica", "Vetro", "Legno"], correctIndex: 2 },
-            { text: "Cosa indica il simbolo con tre frecce che formano un triangolo?", options: ["Pericolo", "Strada a senso unico", "Prodotto riciclabile", "Prodotto costoso"], correctIndex: 2 },
-            { text: "Quale di questi è un comportamento eco-sostenibile?", options: ["Usare l'auto per 100 metri", "Spegnere la luce uscendo", "Stampare ogni email", "Lasciare la TV in standby"], correctIndex: 1 },
-            { text: "Cos'è la 'Raccolta Differenziata'?", options: ["Raccogliere solo plastica", "Dividere i rifiuti per tipo", "Portare i rifiuti in discarica", "Vendere i rifiuti"], correctIndex: 1 },
-            { text: "Qual è il continente più colpito dallo scioglimento dei ghiacciai?", options: ["Africa", "Antartide", "Australia", "Europa"], correctIndex: 1 },
-            { text: "Usare la borraccia invece della bottiglia di plastica aiuta a...", options: ["Bere di più", "Inquinare meno", "Risparmiare tempo", "Essere alla moda"], correctIndex: 1 },
-            { text: "Cosa sono le 'Microplastiche'?", options: ["Piccoli giocattoli", "Frammenti di plastica minuscoli", "Bustine di plastica", "Plastica morbida"], correctIndex: 1 },
-            { text: "Quale di questi elettrodomestici consuma di più se lasciato sempre acceso?", options: ["Caricabatterie", "Scaldabagno elettrico", "Lampadina LED", "Radio"], correctIndex: 1 },
-            { text: "Dove si butta il cartone della pizza molto sporco di cibo?", options: ["Nella carta", "Nell'indifferenziata o umido", "Nella plastica", "Nel vetro"], correctIndex: 1 },
-            { text: "Qual è il vantaggio dei pannelli fotovoltaici?", options: ["Fanno ombra", "Producono elettricità dal sole", "Riscaldano l'acqua", "Abbelliscono il tetto"], correctIndex: 1 },
-            { text: "La carta stagnola (alluminio) dove va buttata?", options: ["Nella carta", "Nella plastica/metalli", "Nel vetro", "Indifferenziata"], correctIndex: 1 },
-            { text: "Cosa si intende per 'Impronta Ecologica'?", options: ["L'orma di un animale", "L'impatto dell'uomo sulla Terra", "Un sentiero nel bosco", "Il peso di un sacco di rifiuti"], correctIndex: 1 },
-            { text: "Quale mezzo di trasporto è il più ecologico?", options: ["Aereo", "Automobile", "Bicicletta", "Moto"], correctIndex: 2 },
-            { text: "Perché non si devono buttare i medicinali scaduti nel cestino normale?", options: ["Perché costano", "Possono inquinare le acque", "Perché sono ancora buoni", "Perché la scatola è bella"], correctIndex: 1 },
-            { text: "Quale di queste piante assorbe molta CO2?", options: ["Alberi/Foreste", "Erba sintetica", "Fiori di plastica", "Sabbia"], correctIndex: 0 },
-            { text: "Cos'è il 'Greenwashing'?", options: ["Lavare i panni a freddo", "Finta attenzione all'ambiente", "Dipingere tutto di verde", "Pulire i parchi"], correctIndex: 1 },
-            { text: "L'olio esausto della cucina va buttato...", options: ["Nel lavandino", "In giardino", "Raccolto in centri appositi", "Nella spazzatura"], correctIndex: 2 },
-            { text: "Quanti alberi servono per produrre una tonnellata di carta vergine?", options: ["1", "5", "circa 15", "100"], correctIndex: 2 },
-            { text: "Qual è il periodo dell'anno in cui si celebra la 'Giornata della Terra'?", options: ["Gennaio", "Aprile", "Agosto", "Dicembre"], correctIndex: 1 }
-        ];
-
-        // --- COSTANTI GIOCO ---
-        const BOARD_SIZE = 48;
-        const PLAYER_COLORS = ['#1E3A8A', '#FBBF24', '#F97316', '#15803D', '#7E22CE'];
-        const PLAYER_ANIMALS = ['🐶', '🐱', '🐰', '🦊', '🐸'];
-        const TILE_COLORS = ['#1E3A8A', '#F97316', '#FBBF24', '#7E22CE', '#15803D'];
-
-        const TileType = {
-            START: 'START', END: 'END', QUESTION: 'QUESTION', GOOSE: 'GOOSE',
-            BRIDGE: 'BRIDGE', INN: 'INN', WELL: 'WELL', LABYRINTH: 'LABYRINTH', DEATH: 'DEATH'
-        };
-
-        const SPECIAL_TILES = {
-            0: { type: TileType.START, label: "Partenza", icon: "🚀" },
-            5: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-            6: { type: TileType.BRIDGE, label: "Rubinetto", icon: "🚰" },
-            9: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-            14: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-            18: { type: TileType.INN, label: "Auto", icon: "🚗" },
-            23: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-            30: { type: TileType.WELL, label: "Energia", icon: "💡" },
-            35: { type: TileType.LABYRINTH, label: "Corvo", icon: "🐦‍⬛" },
-            41: { type: TileType.DEATH, label: "Rifiuti", icon: "🍎" },
-            47: { type: TileType.END, label: "Arrivo", icon: "🏁" },
-        };
-
-        // --- COMPONENTI ---
-        const Dice = ({ value, rolling, onRoll, disabled }) => {
-            const dots = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-            const currentDots = value ? dots[value] : [];
-            return React.createElement('button', {
-                onClick: onRoll,
-                disabled: rolling || disabled,
-                className: `relative w-24 h-24 bg-white rounded-3xl shadow-2xl flex items-center justify-center p-5 transition-all ${rolling ? 'animate-bounce scale-110' : 'hover:scale-105 active:scale-95'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`
-            }, React.createElement('div', { className: "grid grid-cols-3 grid-rows-3 w-full h-full gap-2" }, 
-                Array.from({ length: 9 }).map((_, i) => React.createElement('div', { key: i, className: "flex items-center justify-center" }, 
-                    currentDots.includes(i) && React.createElement('div', { className: "w-4 h-4 bg-slate-800 rounded-full shadow-inner" })
-                ))
-            ));
-        };
-
-        const Board = ({ tiles, players }) => {
-            const cols = 12; const rows = 8;
-            const getTilePosition = (index) => {
-                if (index <= 11) return { r: 7, c: index };
-                if (index <= 18) return { r: 7 - (index - 11), c: 11 };
-                if (index <= 29) return { r: 0, c: 11 - (index - 18) };
-                if (index <= 34) return { r: index - 29, c: 0 };
-                if (index <= 43) return { r: 5, c: index - 34 };
-                if (index <= 46) return { r: 5 - (index - 43), c: 9 };
-                return { r: 3, c: 9 };
-            };
-            const boardGrid = Array.from({ length: rows }, () => Array(cols).fill(null));
-            tiles.forEach((tile, idx) => { const pos = getTilePosition(idx); if(pos.r < rows && pos.c < cols) boardGrid[pos.r][pos.c] = tile; });
-
-            return React.createElement('div', { className: "relative bg-white p-4 rounded-[2.5rem] shadow-2xl border-[10px] border-[#D97706] w-full max-w-5xl select-none" }, 
-                React.createElement('div', { className: "grid grid-cols-12 grid-rows-8 gap-1 relative z-10" }, 
-                    boardGrid.map((row, rIdx) => row.map((tile, cIdx) => {
-                        if (!tile) return React.createElement('div', { key: `e-${rIdx}-${cIdx}`, className: "aspect-square" });
-                        const isSpecial = SPECIAL_TILES[tile.index];
-                        const tileColor = TILE_COLORS[tile.index % TILE_COLORS.length];
-                        const playersHere = players.filter(p => p.position === tile.index);
-                        return React.createElement('div', {
-                            key: `t-${tile.index}`,
-                            style: { backgroundColor: tileColor },
-                            className: "relative aspect-square border border-white/20 flex items-center justify-center shadow-sm rounded-xl overflow-hidden"
-                        }, 
-                            React.createElement('span', { className: `absolute top-1 left-1 text-[8px] md:text-xs font-black ${tileColor === '#FBBF24' ? 'text-slate-800' : 'text-white'} opacity-40` }, tile.index + 1),
-                            isSpecial ? React.createElement('span', { className: "text-lg md:text-3xl drop-shadow-md" }, isSpecial.icon) : React.createElement('span', { className: `text-xs md:text-xl font-black ${tileColor === '#FBBF24' ? 'text-slate-800' : 'text-white'}` }, tile.index + 1),
-                            React.createElement('div', { className: "absolute inset-0 flex items-center justify-center gap-0.5 pointer-events-none flex-wrap content-center" }, 
-                                playersHere.map(p => React.createElement('div', {
-                                    key: p.id,
-                                    style: { backgroundColor: p.color },
-                                    className: "w-6 h-6 md:w-10 md:h-10 rounded-full border-2 border-white shadow-xl animate-bounce-slow flex items-center justify-center text-xs md:text-xl z-50"
-                                }, p.icon))
-                            )
-                        );
-                    }))
-                )
-            );
-        };
-
-        const App = () => {
-            const [gs, setGs] = useState({ players: [], curIdx: 0, tiles: [], status: 'SETUP', lastRoll: null, history: ['Benvenuti!'], curQ: null, topic: 'Ecologia' });
-            const [rolling, setRolling] = useState(false);
-
-            const start = (c) => {
-                const tiles = Array.from({ length: BOARD_SIZE }, (_, i) => SPECIAL_TILES[i] ? { index: i, ...SPECIAL_TILES[i] } : { index: i, type: TileType.QUESTION, label: `${i + 1}` });
-                const plrs = Array.from({ length: c }, (_, i) => ({ id: i, name: `Giocatore ${i+1}`, color: PLAYER_COLORS[i % 5], icon: PLAYER_ANIMALS[i % 5], position: 0, skip: 0 }));
-                setGs(p => ({ ...p, players: plrs, tiles, status: 'PLAYING' }));
-            };
-
-            const addH = (msg) => setGs(p => ({ ...p, history: [msg, ...p.history].slice(0, 10) }));
-            const next = () => setGs(p => ({ ...p, curIdx: (p.curIdx + 1) % p.players.length }));
-            
-            const move = (pid, steps) => {
-                setGs(p => {
-                    const ps = [...p.players]; const plr = { ...ps[pid] };
-                    let pos = plr.position + steps;
-                    if (pos >= BOARD_SIZE) pos = (BOARD_SIZE - 1) - (pos - (BOARD_SIZE - 1));
-                    if (pos < 0) pos = 0; plr.position = pos; ps[pid] = plr;
-                    return { ...p, players: ps };
-                });
-            };
-
-            const check = (pid) => {
-                setGs(p => {
-                    const plr = p.players[pid]; const tile = p.tiles[plr.position];
-                    if (tile.type === TileType.GOOSE) {
-                        const r = p.lastRoll || 1; addH(`${plr.icon} Oca! Vola ancora di ${r}`);
-                        setTimeout(() => { move(pid, r); setTimeout(() => check(pid), 600); }, 600);
-                    } else if (tile.type === TileType.BRIDGE) {
-                        addH(`${plr.icon} Rubinetto risparmiatore! +4`);
-                        setTimeout(() => { move(pid, 4); setTimeout(() => check(pid), 600); }, 600);
-                    } else if (tile.type === TileType.INN) {
-                        addH(`${plr.icon} Auto in coda... Salta un turno 🚗`);
-                        setGs(s => { const ps = [...s.players]; ps[pid].skip = 1; return { ...s, players: ps }; }); next();
-                    } else if (tile.type === TileType.WELL) {
-                        addH(`${plr.icon} Spreco di energia! Torna indietro 💡`);
-                        setTimeout(() => { move(pid, -5); next(); }, 600);
-                    } else if (tile.type === TileType.LABYRINTH) {
-                        addH(`${plr.icon} Perso nel bosco! Torna alla casella 12`);
-                        setGs(s => { const ps = [...s.players]; ps[pid].position = 11; return { ...s, players: ps }; }); next();
-                    } else if (tile.type === TileType.DEATH) {
-                        addH(`${plr.icon} Rifiuti abbandonati! Torna all'inizio 🍎`);
-                        setGs(s => { const ps = [...s.players]; ps[pid].position = 0; return { ...s, players: ps }; }); next();
-                    } else if (tile.type === TileType.QUESTION) {
-                        const q = DOMANDE_DATA[Math.floor(Math.random() * DOMANDE_DATA.length)];
-                        setGs(s => ({ ...s, curQ: q }));
-                    } else if (tile.type === TileType.END) {
-                        setGs(s => ({ ...s, status: 'FINISHED' }));
-                    } else { next(); }
-                    return p;
-                });
-            };
-
-            const roll = () => {
-                const cp = gs.players[gs.curIdx];
-                if (cp.skip > 0) {
-                    addH(`${cp.icon} Salta il turno`);
-                    setGs(p => { const ps = [...p.players]; ps[p.curIdx].skip--; return { ...p, players: ps }; }); next(); return;
-                }
-                setRolling(true); const r = Math.floor(Math.random() * 6) + 1;
-                setGs(p => ({ ...p, lastRoll: r }));
-                setTimeout(() => { 
-                    setRolling(false); 
-                    addH(`${cp.icon} Lancia: ${r}`); 
-                    move(gs.curIdx, r); 
-                    setTimeout(() => check(gs.curIdx), 800); 
-                }, 1000);
-            };
-
-            if (gs.status === 'SETUP') return React.createElement('div', { className: "min-h-screen bg-indigo-600 flex items-center justify-center p-6" }, 
-                React.createElement('div', { className: "bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-in slide-in-from-bottom duration-500" }, 
-                    React.createElement('div', { className: "text-center mb-8" }, 
-                        React.createElement('span', { className: "text-7xl" }, "🪿"),
-                        React.createElement('h1', { className: "text-3xl font-black text-indigo-900 mt-4 font-fredoka uppercase" }, "Oca Ecologica")
-                    ),
-                    React.createElement('div', { className: "space-y-6" }, 
-                        React.createElement('div', null, 
-                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-4" }, "Quanti giocatori partecipano?"),
-                            React.createElement('div', { className: "grid grid-cols-2 gap-3" }, 
-                                [2,3,4,5].map(n => React.createElement('button', {
-                                    key: n,
-                                    onClick: () => start(n),
-                                    className: "py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                                }, `${n} Giocatori`))
-                            )
-                        ),
-                        React.createElement('p', { className: "text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest" }, "Versione Offline Standalone")
-                    )
-                )
-            );
-
-            if (gs.status === 'FINISHED') {
-                const winner = gs.players.find(p => p.position === BOARD_SIZE - 1);
-                return React.createElement('div', { className: "min-h-screen bg-emerald-50 flex flex-col items-center justify-center p-8 text-center" }, 
-                    React.createElement('div', { className: "text-9xl mb-6 animate-bounce" }, winner?.icon), 
-                    React.createElement('h1', { className: "text-6xl font-black font-fredoka text-emerald-600 mb-8" }, `${winner?.name} VINCE!`), 
-                    React.createElement('button', { onClick: () => window.location.reload(), className: "px-12 py-5 bg-indigo-600 text-white rounded-full font-black text-2xl shadow-2xl hover:bg-indigo-700" }, "RIPROVA")
-                );
-            }
-
-            const cp = gs.players[gs.curIdx];
-            return React.createElement('div', { className: "min-h-screen flex flex-col items-center p-4 md:p-8 gap-8" }, 
-                React.createElement('header', { className: "w-full max-w-6xl bg-white p-6 rounded-[2rem] shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 border-b-4 border-indigo-100" }, 
-                    React.createElement('div', { className: "flex items-center gap-4" }, 
-                        React.createElement('div', { className: "text-5xl" }, "🪿"), 
-                        React.createElement('div', null,
-                            React.createElement('h1', { className: "text-3xl font-black font-fredoka text-indigo-900 leading-none uppercase" }, "Gioco dell'Oca"),
-                            React.createElement('p', { className: "text-xs font-bold text-emerald-500 uppercase tracking-widest mt-1" }, "Edizione Ecologia & Ambiente")
-                        )
-                    ),
-                    React.createElement('div', { className: "flex gap-2" }, gs.players.map(p => React.createElement('div', { key: p.id, className: `px-5 py-3 rounded-2xl flex items-center gap-2 border-2 transition-all ${p.id === gs.curIdx ? 'bg-indigo-50 border-indigo-600 scale-105 shadow-md' : 'bg-transparent border-transparent opacity-40'}`, style: { color: p.id === gs.curIdx ? p.color : '#94a3b8' } }, React.createElement('span', { className: "text-2xl" }, p.icon), React.createElement('span', { className: "text-xs font-black uppercase" }, p.name))))
-                ),
-                React.createElement('main', { className: "w-full max-w-6xl flex flex-col xl:flex-row gap-8 items-center xl:items-start" }, 
-                    React.createElement(Board, { tiles: gs.tiles, players: gs.players }),
-                    React.createElement('aside', { className: "w-full xl:w-80 flex flex-col gap-8" }, 
-                        React.createElement('div', { className: "bg-white p-10 rounded-[2.5rem] shadow-2xl flex flex-col items-center border-b-8 border-slate-100" }, 
-                            React.createElement('div', { className: "flex items-center gap-4 mb-8" },
-                                React.createElement('div', { className: "w-14 h-14 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl", style: { backgroundColor: cp.color } }, cp.icon),
-                                React.createElement('span', { className: "text-xl font-black font-fredoka text-slate-800" }, cp.name)
-                            ),
-                            React.createElement(Dice, { value: gs.lastRoll, rolling, onRoll: roll, disabled: !!gs.curQ })
-                        ),
-                        React.createElement('div', { className: "bg-white p-6 rounded-[2rem] shadow-lg flex-1 overflow-hidden" }, 
-                            React.createElement('h3', { className: "font-black mb-4 text-xs uppercase tracking-widest text-slate-400 border-b pb-2" }, "Cronologia Mosse"),
-                            React.createElement('div', { className: "text-xs space-y-3 overflow-y-auto max-h-64 custom-scrollbar pr-2" }, gs.history.map((h, i) => React.createElement('div', { key: i, className: `p-4 rounded-2xl ${i === 0 ? 'bg-indigo-50 text-indigo-900 font-bold border-l-4 border-indigo-500 shadow-sm' : 'bg-slate-50 text-slate-500'}` }, h)))
-                        )
-                    )
-                ),
-                gs.curQ && React.createElement('div', { className: "fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-6" }, 
-                    React.createElement('div', { className: "bg-white w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white animate-in zoom-in duration-300" }, 
-                        React.createElement('div', { className: "p-10 text-white text-center flex flex-col items-center", style: { backgroundColor: cp.color } }, 
-                            React.createElement('div', { className: "text-7xl mb-4" }, cp.icon),
-                            React.createElement('h2', { className: "text-2xl font-black font-fredoka uppercase" }, `Domanda per ${cp.name}`)
-                        ),
-                        React.createElement('div', { className: "p-10" }, 
-                            React.createElement('p', { className: "text-2xl font-bold text-slate-800 mb-10 text-center leading-tight" }, gs.curQ.text),
-                            React.createElement('div', { className: "grid grid-cols-1 gap-4" }, 
-                                gs.curQ.options.map((opt, idx) => React.createElement('button', {
-                                    key: idx,
-                                    onClick: () => {
-                                        if (idx === gs.curQ.correctIndex) {
-                                            addH(`Risposta Esatta! ✅ ${cp.name} resta qui.`);
-                                        } else { 
-                                            const stepsBack = gs.lastRoll || 0;
-                                            addH(`Sbagliato! ❌ ${cp.name} torna indietro di ${stepsBack}.`); 
-                                            move(gs.curIdx, -stepsBack); 
-                                        }
-                                        setGs(p => ({ ...p, curQ: null })); next();
-                                    },
-                                    className: "p-5 rounded-3xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 text-left font-bold text-xl transition-all shadow-sm active:scale-95"
-                                }, `${String.fromCharCode(65 + idx)}) ${opt}`))
-                            )
-                        )
-                    )
-                )
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(App));
-    </script>
+    <script type="module" src="index.tsx"></script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>
