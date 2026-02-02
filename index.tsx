@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI, Type } from '@google/genai';
 
-// --- COSTANTI ---
+// --- COSTANTI DI GIOCO ---
 const BOARD_SIZE = 48;
 const PLAYER_COLORS = ['#1E3A8A', '#FBBF24', '#F97316', '#15803D', '#7E22CE'];
 const PLAYER_ANIMALS = ['🐶', '🐱', '🐰', '🦊', '🐸'];
@@ -11,24 +11,24 @@ const TILE_COLORS = ['#1E3A8A', '#F97316', '#FBBF24', '#7E22CE', '#15803D'];
 enum TileType {
   START = 'START', END = 'END', QUESTION = 'QUESTION',
   GOOSE = 'GOOSE', BRIDGE = 'BRIDGE', INN = 'INN',
-  WELL = 'WELL', LABYRINTH = 'LABYRINTH', DEATH = 'DEATH'
+  WELL = 'WELL', LABYRINTH = 'LABYRINTH', DEATH = 'DEATH',
 }
 
-const SPECIAL_TILES: Record<number, { type: TileType; icon: string; label: string }> = {
-  0: { type: TileType.START, label: "Partenza", icon: "🚀" },
-  5: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-  6: { type: TileType.BRIDGE, label: "Ponte", icon: "🚰" },
-  9: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-  14: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-  18: { type: TileType.INN, label: "Sosta", icon: "🚗" },
-  23: { type: TileType.GOOSE, label: "Oca", icon: "🪿" },
-  30: { type: TileType.WELL, label: "Pozzo", icon: "💡" },
-  35: { type: TileType.LABYRINTH, label: "Labirinto", icon: "🐦‍⬛" },
-  41: { type: TileType.DEATH, label: "Ritorno", icon: "🍎" },
-  47: { type: TileType.END, label: "Arrivo", icon: "🏁" },
+const SPECIAL_TILES: Record<number, { type: TileType; icon: string; label: string; desc: string }> = {
+  0: { type: TileType.START, label: "Partenza", icon: "🚀", desc: "Inizia il viaggio!" },
+  5: { type: TileType.GOOSE, label: "Oca", icon: "🪿", desc: "Vola avanti!" },
+  6: { type: TileType.BRIDGE, label: "Ponte", icon: "🌉", desc: "Salta avanti!" },
+  9: { type: TileType.GOOSE, label: "Oca", icon: "🪿", desc: "Vola avanti!" },
+  14: { type: TileType.GOOSE, icon: "🪿", label: "Oca", desc: "Vola avanti!" },
+  18: { type: TileType.INN, label: "Locanda", icon: "🏠", desc: "Ti fermi a riposare. Salta un turno." },
+  23: { type: TileType.GOOSE, icon: "🪿", label: "Oca", desc: "Vola avanti!" },
+  30: { type: TileType.WELL, label: "Pozzo", icon: "🕳️", desc: "Sei caduto nel pozzo! Torna indietro di 5." },
+  35: { type: TileType.LABYRINTH, label: "Labirinto", icon: "🌀", desc: "Ti sei perso! Torna alla casella 12." },
+  41: { type: TileType.DEATH, label: "Scheletro", icon: "💀", desc: "Sfortuna! Ricomincia dall'inizio." },
+  47: { type: TileType.END, label: "Arrivo", icon: "🏁", desc: "Hai vinto!" },
 };
 
-// --- COMPONENTI UI ---
+// --- COMPONENTI UI INTERNI ---
 
 const Dice = ({ value, rolling, onRoll, disabled }: any) => {
   const dots: Record<number, number[]> = {
@@ -62,11 +62,11 @@ const Board = ({ players }: { players: any[] }) => {
   const getTilePosition = (index: number) => {
     if (index <= 11) return { r: 7, c: index };
     if (index <= 18) return { r: 7 - (index - 11), c: 11 };
-    if (index <= 29) return { r: 0, c: 11 - (index - 19) };
+    if (index <= 29) return { r: 0, c: 11 - (index - 18) };
     if (index <= 34) return { r: index - 29, c: 0 };
     if (index <= 43) return { r: 5, c: index - 34 };
     if (index <= 46) return { r: 5 - (index - 43), c: 9 };
-    return { r: 3, c: 8 };
+    return { r: 3, c: 9 };
   };
 
   const grid = Array.from({ length: rows }, () => Array(cols).fill(null));
@@ -76,7 +76,7 @@ const Board = ({ players }: { players: any[] }) => {
   }
 
   return (
-    <div className="relative bg-white p-4 rounded-[2.5rem] shadow-2xl border-[10px] border-amber-600 w-full max-w-5xl overflow-hidden select-none">
+    <div className="relative bg-white p-4 rounded-[2.5rem] shadow-2xl border-[10px] border-[#D97706] w-full max-w-5xl overflow-hidden select-none">
       <div className="grid grid-cols-12 grid-rows-8 gap-1 relative z-10">
         {grid.map((row, rIdx) => row.map((tile, cIdx) => {
           if (!tile) return <div key={`e-${rIdx}-${cIdx}`} className="aspect-square" />;
@@ -84,10 +84,10 @@ const Board = ({ players }: { players: any[] }) => {
           return (
             <div key={`t-${tile.index}`} style={{ backgroundColor: tile.color }} className="relative aspect-square border border-white/20 flex flex-col items-center justify-center shadow-sm rounded-xl">
               <span className={`absolute top-0.5 left-1 text-[8px] font-black opacity-30 ${tile.color === '#FBBF24' ? 'text-slate-800' : 'text-white'}`}>{tile.index + 1}</span>
-              {tile.special ? <span className="text-xs md:text-2xl drop-shadow-md">{tile.special.icon}</span> : <span className={`text-[10px] md:text-lg font-bold ${tile.color === '#FBBF24' ? 'text-slate-800' : 'text-white'}`}>{tile.index + 1}</span>}
+              {tile.special ? <span className="text-sm md:text-2xl drop-shadow-md">{tile.special.icon}</span> : <span className={`text-[10px] md:text-lg font-bold ${tile.color === '#FBBF24' ? 'text-slate-800' : 'text-white'}`}>{tile.index + 1}</span>}
               <div className="absolute inset-0 flex items-center justify-center gap-0.5 flex-wrap content-center">
                 {playersHere.map(p => (
-                  <div key={p.id} style={{ backgroundColor: p.color }} className="w-5 h-5 md:w-8 md:h-8 rounded-full border-2 border-white shadow-lg animate-pawn flex items-center justify-center text-[10px] md:text-base z-50">
+                  <div key={p.id} style={{ backgroundColor: p.color }} className="w-5 h-5 md:w-9 md:h-9 rounded-full border-2 border-white shadow-lg animate-pawn flex items-center justify-center text-[10px] md:text-lg z-50">
                     {p.icon}
                   </div>
                 ))}
@@ -100,22 +100,23 @@ const Board = ({ players }: { players: any[] }) => {
   );
 };
 
-// --- APP ---
+// --- LOGICA APP ---
 
 const App = () => {
   const [gs, setGs] = useState<any>({ 
     players: [], curIdx: 0, status: 'SETUP', lastRoll: null, 
-    history: ['Iniziamo!'], curQ: null, questions: [], topic: '', age: '' 
+    history: ['Benvenuti!'], curQ: null, questions: [], topic: '', age: '' 
   });
   const [rolling, setRolling] = useState(false);
 
-  const addH = (msg: string) => setGs((p: any) => ({ ...p, history: [msg, ...p.history].slice(0, 10) }));
+  const addHistory = (msg: string) => setGs((p: any) => ({ ...p, history: [msg, ...p.history].slice(0, 10) }));
 
   const start = async (topic: string, age: string, count: number) => {
     setGs((p: any) => ({ ...p, status: 'LOADING', topic, age }));
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const prompt = `Genera 15 domande a scelta multipla su "${topic}" per ragazzi di "${age}". Ritorna un array JSON: [{text, options[], correctIndex}].`;
+      const prompt = `Genera 15 domande a scelta multipla sull'argomento "${topic}" per bambini di "${age}". 
+      Ritorna SOLO un array JSON: [{text, options[], correctIndex}].`;
       
       const res = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -144,7 +145,7 @@ const App = () => {
       setGs((p: any) => ({ ...p, players: ps, questions: qs, status: 'PLAYING' }));
     } catch (e) {
       console.error(e);
-      alert("Errore nell'inizializzazione. Verifica la connessione e riprova.");
+      alert("Errore AI. Riprova.");
       setGs((p: any) => ({ ...p, status: 'SETUP' }));
     }
   };
@@ -162,7 +163,7 @@ const App = () => {
     });
   };
 
-  const handleTileEffect = (id: number) => {
+  const checkTile = (id: number) => {
     setGs((p: any) => {
       const plr = p.players[id];
       const tile = SPECIAL_TILES[plr.position];
@@ -170,25 +171,24 @@ const App = () => {
       if (tile) {
         if (tile.type === TileType.GOOSE) {
           const r = p.lastRoll || 1;
-          addH(`${plr.icon} Oca! Vola avanti di altri ${r}`);
-          setTimeout(() => { movePlayer(id, r); setTimeout(() => handleTileEffect(id), 600); }, 600);
+          addHistory(`${plr.icon} Oca! +${r}`);
+          setTimeout(() => { movePlayer(id, r); setTimeout(() => checkTile(id), 600); }, 600);
         } else if (tile.type === TileType.BRIDGE) {
-          addH(`${plr.icon} Ponte! Corri alla casella 12`);
-          setGs((s: any) => { const nps = [...s.players]; nps[id].position = 11; return { ...s, players: nps }; });
-          nextTurn();
+          addHistory(`${plr.icon} Ponte! +4`);
+          setTimeout(() => { movePlayer(id, 4); setTimeout(() => checkTile(id), 600); }, 600);
         } else if (tile.type === TileType.INN) {
-          addH(`${plr.icon} Sosta... Salta un turno.`);
+          addHistory(`${plr.icon} Fermo un turno.`);
           setGs((s: any) => { const nps = [...s.players]; nps[id].skip = 1; return { ...s, players: nps }; });
           nextTurn();
         } else if (tile.type === TileType.WELL) {
-          addH(`${plr.icon} Errore energia! Torna indietro 5`);
+          addHistory(`${plr.icon} Pozzo! Torna indietro 5.`);
           setTimeout(() => { movePlayer(id, -5); nextTurn(); }, 600);
         } else if (tile.type === TileType.LABYRINTH) {
-          addH(`${plr.icon} Perso! Torna alla casella 12`);
+          addHistory(`${plr.icon} Labirinto! Torna alla casella 12.`);
           setGs((s: any) => { const nps = [...s.players]; nps[id].position = 11; return { ...s, players: nps }; });
           nextTurn();
         } else if (tile.type === TileType.DEATH) {
-          addH(`${plr.icon} Ricomincia dall'inizio!`);
+          addHistory(`${plr.icon} Reset! Torna all'inizio.`);
           setGs((s: any) => { const nps = [...s.players]; nps[id].position = 0; return { ...s, players: nps }; });
           nextTurn();
         } else if (tile.type === TileType.END) {
@@ -205,7 +205,7 @@ const App = () => {
   const rollDice = () => {
     const cp = gs.players[gs.curIdx];
     if (cp.skip > 0) {
-      addH(`${cp.icon} Salta il turno`);
+      addHistory(`${cp.icon} Salta il turno`);
       setGs((p: any) => { const nps = [...p.players]; nps[p.curIdx].skip--; return { ...p, players: nps }; });
       nextTurn(); return;
     }
@@ -214,19 +214,19 @@ const App = () => {
     setGs((p: any) => ({ ...p, lastRoll: r }));
     setTimeout(() => {
       setRolling(false);
-      addH(`${cp.icon} Dado: ${r}`);
+      addHistory(`${cp.icon} Dado: ${r}`);
       movePlayer(gs.curIdx, r);
-      setTimeout(() => handleTileEffect(gs.curIdx), 800);
+      setTimeout(() => checkTile(gs.curIdx), 800);
     }, 1000);
   };
 
   const answer = (idx: number) => {
     const isCorrect = idx === gs.curQ.correctIndex;
     if (isCorrect) {
-      addH(`Corretto! ✅`);
+      addHistory(`Corretto! ✅`);
     } else {
       const r = gs.lastRoll || 0;
-      addH(`Sbagliato! ❌ Torna indietro di ${r}`);
+      addHistory(`Sbagliato! ❌ Indietro di ${r}`);
       movePlayer(gs.curIdx, -r);
     }
     setGs((p: any) => ({ ...p, curQ: null }));
@@ -235,18 +235,15 @@ const App = () => {
 
   if (gs.status === 'SETUP') return (
     <div className="min-h-screen bg-indigo-600 flex items-center justify-center p-6 text-slate-800">
-      <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-in slide-in-from-bottom duration-500">
+      <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10">
         <div className="text-center mb-8">
           <span className="text-7xl">🪿</span>
-          <h1 className="text-3xl font-black text-indigo-900 mt-4 font-fredoka uppercase">Il Gioco dell'Oca AI</h1>
+          <h1 className="text-3xl font-black text-indigo-900 mt-4 font-fredoka uppercase">Oca Didattica AI</h1>
         </div>
-        <form onSubmit={(e: any) => { 
-          e.preventDefault(); 
-          start(e.target.topic.value, e.target.age.value, parseInt(e.target.count.value)); 
-        }} className="space-y-6">
+        <form onSubmit={(e: any) => { e.preventDefault(); start(e.target.topic.value, e.target.age.value, parseInt(e.target.count.value)); }} className="space-y-6">
           <div>
             <label className="text-xs font-black uppercase text-slate-400 block mb-2">Argomento</label>
-            <input name="topic" defaultValue="Scienze Naturali" className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none" required />
+            <input name="topic" defaultValue="Storia Romana" className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -269,9 +266,9 @@ const App = () => {
   );
 
   if (gs.status === 'LOADING') return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white p-12 text-slate-800">
-      <div className="w-24 h-24 border-8 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-8" />
-      <h2 className="text-2xl font-black text-indigo-900 font-fredoka animate-pulse uppercase">Generando domande...</h2>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white p-12">
+      <div className="w-20 h-20 border-8 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-8" />
+      <h2 className="text-2xl font-black text-indigo-900 font-fredoka animate-pulse uppercase">Creando le sfide...</h2>
     </div>
   );
 
@@ -280,7 +277,7 @@ const App = () => {
     return (
       <div className="min-h-screen bg-emerald-50 flex flex-col items-center justify-center p-8 text-center text-slate-800">
         <div className="text-9xl mb-6 animate-bounce">{winner?.icon}</div>
-        <h1 className="text-6xl font-black font-fredoka text-emerald-600 mb-8 uppercase">{winner?.name} VINCE!</h1>
+        <h1 className="text-6xl font-black font-fredoka text-emerald-600 mb-4 uppercase">{winner?.name} VINCE!</h1>
         <button onClick={() => window.location.reload()} className="px-12 py-5 bg-indigo-600 text-white rounded-full font-black text-2xl shadow-2xl">RIPROVA</button>
       </div>
     );
@@ -292,10 +289,10 @@ const App = () => {
     <div className="min-h-screen flex flex-col items-center p-4 md:p-8 gap-8 text-slate-800">
       <header className="w-full max-w-6xl bg-white p-6 rounded-[2rem] shadow-xl flex flex-col md:flex-row justify-between items-center border-b-4 border-indigo-100">
         <div className="flex items-center gap-4">
-          <div className="text-4xl">🪿</div>
+          <div className="text-5xl">🪿</div>
           <div>
-            <h1 className="text-2xl font-black font-fredoka text-indigo-900 uppercase leading-none">{gs.topic}</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Età: {gs.age}</p>
+            <h1 className="text-2xl font-black font-fredoka text-indigo-900 uppercase">{gs.topic}</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{gs.age}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -311,7 +308,7 @@ const App = () => {
       <main className="w-full max-w-6xl flex flex-col xl:flex-row gap-8 items-center xl:items-start">
         <Board players={gs.players} />
         <aside className="w-full xl:w-80 flex flex-col gap-8">
-          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl flex flex-col items-center border-b-8 border-slate-100">
+          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl flex flex-col items-center">
             <div className="flex items-center gap-4 mb-8">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg" style={{ backgroundColor: cp.color }}>{cp.icon}</div>
               <span className="text-xl font-black font-fredoka">{cp.name}</span>
@@ -321,7 +318,7 @@ const App = () => {
           <div className="bg-white p-6 rounded-[2rem] shadow-lg flex-1 overflow-hidden">
             <h3 className="text-[10px] font-black uppercase text-slate-400 border-b pb-2 mb-4 tracking-widest">Cronologia</h3>
             <div className="text-[11px] space-y-2 overflow-y-auto max-h-56 custom-scrollbar pr-2">
-              {gs.history.map((h: string, i: number) => <div key={i} className={`p-3 rounded-xl animate-in slide-in-from-right duration-300 ${i === 0 ? 'bg-indigo-50 font-bold border-l-4 border-indigo-500' : 'bg-slate-50 text-slate-500'}`}>{h}</div>)}
+              {gs.history.map((h: string, i: number) => <div key={i} className={`p-3 rounded-xl ${i === 0 ? 'bg-indigo-50 font-bold border-l-4 border-indigo-500' : 'bg-slate-50 text-slate-500'}`}>{h}</div>)}
             </div>
           </div>
         </aside>
@@ -331,11 +328,11 @@ const App = () => {
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-6">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white animate-in zoom-in duration-300">
             <div className="p-8 text-white text-center flex flex-col items-center" style={{ backgroundColor: cp.color }}>
-              <div className="text-6xl mb-4">{cp.icon}</div>
-              <h2 className="text-xl font-black uppercase font-fredoka tracking-widest text-white">Sfida per {cp.name}</h2>
+              <div className="text-6xl mb-4 filter drop-shadow-lg">{cp.icon}</div>
+              <h2 className="text-xl font-black uppercase font-fredoka tracking-widest">Sfida per {cp.name}</h2>
             </div>
             <div className="p-10">
-              <p className="text-2xl font-bold text-slate-800 mb-10 text-center">{gs.curQ.text}</p>
+              <p className="text-2xl font-bold text-slate-800 mb-10 text-center leading-relaxed">{gs.curQ.text}</p>
               <div className="grid gap-4">
                 {gs.curQ.options.map((opt: string, idx: number) => (
                   <button key={idx} onClick={() => answer(idx)} className="p-5 rounded-2xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 text-left font-bold text-lg transition-all active:scale-95 flex items-center gap-4">
