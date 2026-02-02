@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIOCO DELL'OCA - AI Edition</title>
+    <title>GIOCO DELL'OCA ECOLOGICO - AI Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -25,9 +25,9 @@
     <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/client": "https://esm.sh/react-dom@^19.2.4/client",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@1.3.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/"
   }
@@ -43,13 +43,8 @@
         import ReactDOM from 'react-dom/client';
         import { GoogleGenAI, Type } from '@google/genai';
 
-        // --- FIX PER GITHUB PAGES / AMBIENTI ESTERNI ---
-        // Se process non esiste (browser puro), lo definiamo per evitare errori.
-        if (typeof window.process === 'undefined') {
-            window.process = { env: { API_KEY: AIzaSyBn109EJdSevirx6voR-stMwkEYJD0P5wY'' } };
-        }
-
-        // --- COSTANTI ---
+        // --- CONFIGURAZIONE ---
+        const API_KEY = "AIzaSyCPqpgPGh9QUagrngHNQ-SwS7zYVIe3N5A";
         const BOARD_SIZE = 48;
         const PLAYER_COLORS = ['#1E3A8A', '#FBBF24', '#F97316', '#15803D', '#7E22CE'];
         const PLAYER_ANIMALS = ['🐶', '🐱', '🐰', '🦊', '🐸'];
@@ -74,17 +69,17 @@
             47: { type: TileType.END, label: "Arrivo", icon: "🏁" },
         };
 
-        // --- COMPONENTI ---
+        // --- COMPONENTI INTERNI ---
         const Dice = ({ value, rolling, onRoll, disabled }) => {
             const dots = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
             const currentDots = value ? dots[value] : [];
             return React.createElement('button', {
                 onClick: onRoll,
                 disabled: rolling || disabled,
-                className: `relative w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center p-4 transition-all ${rolling ? 'animate-bounce scale-110' : 'hover:scale-105 active:scale-95'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`
+                className: `relative w-24 h-24 bg-white rounded-3xl shadow-2xl flex items-center justify-center p-5 transition-all ${rolling ? 'animate-bounce scale-110' : 'hover:scale-105 active:scale-95'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`
             }, React.createElement('div', { className: "grid grid-cols-3 grid-rows-3 w-full h-full gap-2" }, 
                 Array.from({ length: 9 }).map((_, i) => React.createElement('div', { key: i, className: "flex items-center justify-center" }, 
-                    currentDots.includes(i) && React.createElement('div', { className: "w-3 h-3 md:w-4 md:h-4 bg-slate-800 rounded-full shadow-inner" })
+                    currentDots.includes(i) && React.createElement('div', { className: "w-4 h-4 bg-slate-800 rounded-full shadow-inner" })
                 ))
             ));
         };
@@ -103,7 +98,7 @@
             const boardGrid = Array.from({ length: rows }, () => Array(cols).fill(null));
             tiles.forEach((tile, idx) => { const pos = getTilePosition(idx); if(pos.r < rows && pos.c < cols) boardGrid[pos.r][pos.c] = tile; });
 
-            return React.createElement('div', { className: "relative bg-white p-2 md:p-4 rounded-[2rem] shadow-2xl border-[8px] md:border-[12px] border-[#D97706] w-full max-w-5xl select-none" }, 
+            return React.createElement('div', { className: "relative bg-white p-4 rounded-[2.5rem] shadow-2xl border-[10px] border-[#D97706] w-full max-w-5xl select-none" }, 
                 React.createElement('div', { className: "grid grid-cols-12 grid-rows-8 gap-1 relative z-10" }, 
                     boardGrid.map((row, rIdx) => row.map((tile, cIdx) => {
                         if (!tile) return React.createElement('div', { key: `e-${rIdx}-${cIdx}`, className: "aspect-square" });
@@ -113,17 +108,18 @@
                         return React.createElement('div', {
                             key: `t-${tile.index}`,
                             style: { backgroundColor: tileColor },
-                            className: "relative aspect-square border border-white/20 flex items-center justify-center shadow-sm rounded-lg"
+                            className: "relative aspect-square border border-white/20 flex items-center justify-center shadow-sm rounded-xl overflow-hidden"
                         }, 
-                        React.createElement('span', { className: `absolute top-0.5 left-0.5 text-[7px] md:text-[10px] font-black ${tileColor === '#FBBF24' ? 'text-slate-800' : 'text-white'} opacity-40` }, tile.index + 1),
-                        isSpecial ? React.createElement('span', { className: "text-sm md:text-2xl drop-shadow-md" }, isSpecial.icon) : React.createElement('span', { className: `text-[10px] md:text-lg font-black ${tileColor === '#FBBF24' ? 'text-slate-800' : 'text-white'}` }, tile.index + 1),
-                        React.createElement('div', { className: "absolute inset-0 flex items-center justify-center gap-0.5 pointer-events-none flex-wrap content-center" }, 
-                            playersHere.map(p => React.createElement('div', {
-                                key: p.id,
-                                style: { backgroundColor: p.color },
-                                className: "w-5 h-5 md:w-9 md:h-9 rounded-full border-2 border-white shadow-xl animate-bounce-slow flex items-center justify-center text-[10px] md:text-lg z-50"
-                            }, p.icon))
-                        ));
+                            React.createElement('span', { className: `absolute top-1 left-1 text-[8px] md:text-xs font-black ${tileColor === '#FBBF24' ? 'text-slate-800' : 'text-white'} opacity-40` }, tile.index + 1),
+                            isSpecial ? React.createElement('span', { className: "text-lg md:text-3xl drop-shadow-md" }, isSpecial.icon) : React.createElement('span', { className: `text-xs md:text-xl font-black ${tileColor === '#FBBF24' ? 'text-slate-800' : 'text-white'}` }, tile.index + 1),
+                            React.createElement('div', { className: "absolute inset-0 flex items-center justify-center gap-0.5 pointer-events-none flex-wrap content-center" }, 
+                                playersHere.map(p => React.createElement('div', {
+                                    key: p.id,
+                                    style: { backgroundColor: p.color },
+                                    className: "w-6 h-6 md:w-10 md:h-10 rounded-full border-2 border-white shadow-xl animate-bounce-slow flex items-center justify-center text-xs md:text-xl z-50"
+                                }, p.icon))
+                            )
+                        );
                     }))
                 )
             );
@@ -134,19 +130,10 @@
             const [rolling, setRolling] = useState(false);
 
             const start = async (t, a, c) => {
-                // RECUPERO API KEY:
-                // Se sei su GitHub, puoi incollare la chiave qui sotto tra le virgolette se process.env.API_KEY è vuoto
-                const finalApiKey = process.env.API_KEY || "AIzaSyBn109EJdSevirx6voR-stMwkEYJD0P5wY"; 
-                
-                if (!finalApiKey) {
-                    alert("ERRORE: Chiave API mancante. Incolla la tua chiave API di Google AI Studio nel codice per far funzionare il gioco su GitHub.");
-                    return;
-                }
-
                 setGs(p => ({ ...p, status: 'LOADING', topic: t, age: a }));
                 try {
-                    const aiClient = new GoogleGenAI({ apiKey: finalApiKey });
-                    const prompt = `Genera 15 domande a risposta multipla su "${t}" per ragazzi di "${a}". Ritorna un array JSON di oggetti {text, options[], correctIndex}.`;
+                    const aiClient = new GoogleGenAI({ apiKey: API_KEY });
+                    const prompt = `Genera 15 domande a risposta multipla su "${t}" per ragazzi di "${a}". Ritorna un array JSON: [{text, options[], correctIndex}].`;
                     const response = await aiClient.models.generateContent({
                         model: "gemini-3-flash-preview",
                         contents: prompt,
@@ -172,41 +159,44 @@
                     setGs(p => ({ ...p, players: plrs, tiles, questions: qs, status: 'PLAYING' }));
                 } catch (e) {
                     console.error(e);
-                    alert("Errore durante la generazione delle domande. Controlla la tua API Key.");
+                    alert("Errore AI. Controlla la chiave API o l'argomento scelto.");
                     setGs(p => ({ ...p, status: 'SETUP' }));
                 }
             };
 
             const addH = (msg) => setGs(p => ({ ...p, history: [msg, ...p.history].slice(0, 10) }));
             const next = () => setGs(p => ({ ...p, curIdx: (p.curIdx + 1) % p.players.length }));
-            const move = (pid, steps) => setGs(p => {
-                const ps = [...p.players]; const plr = { ...ps[pid] };
-                let pos = plr.position + steps;
-                if (pos >= BOARD_SIZE) pos = (BOARD_SIZE - 1) - (pos - (BOARD_SIZE - 1));
-                if (pos < 0) pos = 0; plr.position = pos; ps[pid] = plr;
-                return { ...p, players: ps };
-            });
+            
+            const move = (pid, steps) => {
+                setGs(p => {
+                    const ps = [...p.players]; const plr = { ...ps[pid] };
+                    let pos = plr.position + steps;
+                    if (pos >= BOARD_SIZE) pos = (BOARD_SIZE - 1) - (pos - (BOARD_SIZE - 1));
+                    if (pos < 0) pos = 0; plr.position = pos; ps[pid] = plr;
+                    return { ...p, players: ps };
+                });
+            };
 
             const check = (pid) => {
                 setGs(p => {
                     const plr = p.players[pid]; const tile = p.tiles[plr.position];
                     if (tile.type === TileType.GOOSE) {
-                        const r = p.lastRoll || 1; addH(`${plr.icon} Oca! Vola avanti di ${r}`);
+                        const r = p.lastRoll || 1; addH(`${plr.icon} Oca! +${r}`);
                         setTimeout(() => { move(pid, r); setTimeout(() => check(pid), 600); }, 600);
                     } else if (tile.type === TileType.BRIDGE) {
-                        addH(`${plr.icon} Bonus! +4 caselle`);
+                        addH(`${plr.icon} Bonus! +4`);
                         setTimeout(() => { move(pid, 4); setTimeout(() => check(pid), 600); }, 600);
                     } else if (tile.type === TileType.INN) {
-                        addH(`${plr.icon} Fermo un turno! 🚗`);
+                        addH(`${plr.icon} Auto ferma! Salta un turno 🚗`);
                         setGs(s => { const ps = [...s.players]; ps[pid].skip = 1; return { ...s, players: ps }; }); next();
                     } else if (tile.type === TileType.WELL) {
-                        addH(`${plr.icon} Ops! -5 caselle 💡`);
+                        addH(`${plr.icon} Spreco luce! Torna indietro 💡`);
                         setTimeout(() => { move(pid, -5); next(); }, 600);
                     } else if (tile.type === TileType.LABYRINTH) {
                         addH(`${plr.icon} Ti sei perso! Torna a 12`);
                         setGs(s => { const ps = [...s.players]; ps[pid].position = 11; return { ...s, players: ps }; }); next();
                     } else if (tile.type === TileType.DEATH) {
-                        addH(`${plr.icon} Ricomincia da capo! 🍎`);
+                        addH(`${plr.icon} Rifiuti! Ricomincia 🍎`);
                         setGs(s => { const ps = [...s.players]; ps[pid].position = 0; return { ...s, players: ps }; }); next();
                     } else if (tile.type === TileType.QUESTION) {
                         const q = p.questions[Math.floor(Math.random() * p.questions.length)];
@@ -235,35 +225,35 @@
             };
 
             if (gs.status === 'SETUP') return React.createElement('div', { className: "min-h-screen bg-indigo-600 flex items-center justify-center p-6" }, 
-                React.createElement('div', { className: "bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom duration-500" }, 
-                    React.createElement('div', { className: "text-center mb-6" }, 
-                        React.createElement('span', { className: "text-6xl" }, "🪿"),
-                        React.createElement('h1', { className: "text-3xl font-black text-indigo-900 mt-2 font-fredoka uppercase" }, "Oca Educativa")
+                React.createElement('div', { className: "bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-in slide-in-from-bottom duration-500" }, 
+                    React.createElement('div', { className: "text-center mb-8" }, 
+                        React.createElement('span', { className: "text-7xl" }, "🪿"),
+                        React.createElement('h1', { className: "text-3xl font-black text-indigo-900 mt-4 font-fredoka uppercase" }, "Oca Educativa")
                     ),
-                    React.createElement('form', { onSubmit: (e) => { e.preventDefault(); start(e.target.topic.value, e.target.age.value, parseInt(e.target.count.value)); }, className: "space-y-4" }, 
+                    React.createElement('form', { onSubmit: (e) => { e.preventDefault(); start(e.target.topic.value, e.target.age.value, parseInt(e.target.count.value)); }, className: "space-y-5" }, 
                         React.createElement('div', null, 
-                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-1" }, "Argomento"),
-                            React.createElement('input', { name: "topic", defaultValue: "Storia Egizia", className: "w-full p-4 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition" })
+                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-2" }, "Argomento"),
+                            React.createElement('input', { name: "topic", defaultValue: "Ecologia", className: "w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition" })
                         ),
                         React.createElement('div', null, 
-                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-1" }, "Età"),
-                            React.createElement('select', { name: "age", className: "w-full p-4 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none bg-white" }, 
+                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-2" }, "Età"),
+                            React.createElement('select', { name: "age", className: "w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none bg-white" }, 
                                 ["6-7 anni", "8-10 anni", "11-13 anni", "14+ anni"].map(a => React.createElement('option', { key: a }, a))
                             )
                         ),
                         React.createElement('div', null, 
-                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-1" }, "Giocatori"),
-                            React.createElement('select', { name: "count", className: "w-full p-4 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none bg-white" }, 
-                                [2,3,4,5].map(n => React.createElement('option', { key: n, value: n }, `${n} Partecipanti`))
+                            React.createElement('label', { className: "block text-xs font-black uppercase text-slate-400 mb-2" }, "Giocatori"),
+                            React.createElement('select', { name: "count", className: "w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none bg-white" }, 
+                                [2,3,4,5].map(n => React.createElement('option', { key: n, value: n }, `${n} Giocatori`))
                             )
                         ),
-                        React.createElement('button', { type: "submit", className: "w-full py-5 bg-emerald-500 text-white rounded-2xl font-black text-xl shadow-lg hover:bg-emerald-600 transition-all transform hover:scale-105" }, "COMINCIA!")
+                        React.createElement('button', { type: "submit", className: "w-full py-5 bg-emerald-500 text-white rounded-3xl font-black text-2xl shadow-xl hover:bg-emerald-600 transition-all" }, "GIOCA ORA")
                     )
                 )
             );
 
             if (gs.status === 'LOADING') return React.createElement('div', { className: "min-h-screen flex flex-col items-center justify-center bg-white p-12" }, 
-                React.createElement('div', { className: "animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-indigo-600 mb-6" }),
+                React.createElement('div', { className: "animate-spin rounded-full h-24 w-24 border-t-4 border-indigo-600 mb-6" }),
                 React.createElement('h2', { className: "text-2xl font-black text-indigo-900 font-fredoka animate-pulse" }, "GENERANDO IL MONDO...")
             );
 
@@ -277,12 +267,12 @@
             }
 
             const cp = gs.players[gs.curIdx];
-            return React.createElement('div', { className: "min-h-screen flex flex-col items-center p-4 md:p-8 gap-6" }, 
+            return React.createElement('div', { className: "min-h-screen flex flex-col items-center p-4 md:p-8 gap-8" }, 
                 React.createElement('header', { className: "w-full max-w-6xl bg-white p-6 rounded-[2rem] shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 border-b-4 border-indigo-100" }, 
                     React.createElement('div', { className: "flex items-center gap-4" }, 
                         React.createElement('div', { className: "text-5xl" }, "🪿"), 
                         React.createElement('div', null,
-                            React.createElement('h1', { className: "text-3xl font-black font-fredoka text-indigo-900 leading-none" }, "GIOCO DELL'OCA"),
+                            React.createElement('h1', { className: "text-3xl font-black font-fredoka text-indigo-900 leading-none uppercase" }, "Gioco dell'Oca"),
                             React.createElement('p', { className: "text-xs font-bold text-slate-400 uppercase tracking-widest mt-1" }, `${gs.topic} | ${gs.age}`)
                         )
                     ),
@@ -290,25 +280,25 @@
                 ),
                 React.createElement('main', { className: "w-full max-w-6xl flex flex-col xl:flex-row gap-8 items-center xl:items-start" }, 
                     React.createElement(Board, { tiles: gs.tiles, players: gs.players }),
-                    React.createElement('aside', { className: "w-full xl:w-80 flex flex-col gap-6" }, 
-                        React.createElement('div', { className: "bg-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center border-b-8 border-slate-100" }, 
-                            React.createElement('div', { className: "flex items-center gap-3 mb-8" },
+                    React.createElement('aside', { className: "w-full xl:w-80 flex flex-col gap-8" }, 
+                        React.createElement('div', { className: "bg-white p-10 rounded-[2.5rem] shadow-2xl flex flex-col items-center border-b-8 border-slate-100" }, 
+                            React.createElement('div', { className: "flex items-center gap-4 mb-8" },
                                 React.createElement('div', { className: "w-14 h-14 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl", style: { backgroundColor: cp.color } }, cp.icon),
                                 React.createElement('span', { className: "text-xl font-black font-fredoka text-slate-800" }, cp.name)
                             ),
                             React.createElement(Dice, { value: gs.lastRoll, rolling, onRoll: roll, disabled: !!gs.curQ })
                         ),
                         React.createElement('div', { className: "bg-white p-6 rounded-[2rem] shadow-lg flex-1 overflow-hidden" }, 
-                            React.createElement('h3', { className: "font-black mb-4 text-xs uppercase tracking-widest text-slate-400 border-b pb-2" }, "Cronologia Mosse"),
-                            React.createElement('div', { className: "text-xs space-y-3 overflow-y-auto max-h-56 custom-scrollbar pr-2" }, gs.history.map((h, i) => React.createElement('div', { key: i, className: `p-4 rounded-2xl ${i === 0 ? 'bg-indigo-50 text-indigo-900 font-bold border-l-4 border-indigo-500' : 'bg-slate-50 text-slate-500'}` }, h)))
+                            React.createElement('h3', { className: "font-black mb-4 text-xs uppercase tracking-widest text-slate-400 border-b pb-2" }, "Cronologia"),
+                            React.createElement('div', { className: "text-xs space-y-3 overflow-y-auto max-h-64 custom-scrollbar pr-2" }, gs.history.map((h, i) => React.createElement('div', { key: i, className: `p-4 rounded-2xl ${i === 0 ? 'bg-indigo-50 text-indigo-900 font-bold border-l-4 border-indigo-500 shadow-sm' : 'bg-slate-50 text-slate-500'}` }, h)))
                         )
                     )
                 ),
                 gs.curQ && React.createElement('div', { className: "fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-6" }, 
                     React.createElement('div', { className: "bg-white w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white animate-in zoom-in duration-300" }, 
                         React.createElement('div', { className: "p-10 text-white text-center flex flex-col items-center", style: { backgroundColor: cp.color } }, 
-                            React.createElement('div', { className: "text-6xl mb-4" }, cp.icon),
-                            React.createElement('h2', { className: "text-2xl font-black font-fredoka uppercase" }, `DOMANDA PER ${cp.name.toUpperCase()}`)
+                            React.createElement('div', { className: "text-7xl mb-4" }, cp.icon),
+                            React.createElement('h2', { className: "text-2xl font-black font-fredoka uppercase" }, `Domanda per ${cp.name}`)
                         ),
                         React.createElement('div', { className: "p-10" }, 
                             React.createElement('p', { className: "text-2xl font-bold text-slate-800 mb-10 text-center leading-tight" }, gs.curQ.text),
@@ -317,7 +307,7 @@
                                     key: idx,
                                     onClick: () => {
                                         if (idx === gs.curQ.correctIndex) {
-                                            addH(`Corretto! ✅ ${cp.name} resta qui.`);
+                                            addH(`Esatto! ✅ ${cp.name} resta qui.`);
                                         } else { 
                                             const stepsBack = gs.lastRoll || 0;
                                             addH(`Sbagliato! ❌ ${cp.name} torna indietro di ${stepsBack}.`); 
@@ -325,7 +315,7 @@
                                         }
                                         setGs(p => ({ ...p, curQ: null })); next();
                                     },
-                                    className: "p-5 rounded-2xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 text-left font-bold text-lg transition-all shadow-sm active:scale-95"
+                                    className: "p-5 rounded-3xl border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 text-left font-bold text-xl transition-all shadow-sm active:scale-95"
                                 }, `${String.fromCharCode(65 + idx)}) ${opt}`))
                             )
                         )
